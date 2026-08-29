@@ -33,9 +33,9 @@ def _default_naming_pattern(id: int) -> str:
     return f"Фото {id}"
 
 def process_dir(
-    base_dir: AbsolutePath, 
+    base_dir : AbsolutePath, 
     start_index : int = 1, 
-    naming_pattern: Callable[[int], str] = _default_naming_pattern
+    naming_pattern : Callable[[int], str] = _default_naming_pattern
 ) -> tp.List[Picture]:
     """
     Sorts pics in directory (first vertical, then horizontal)
@@ -70,7 +70,12 @@ def process_dir(
                 is_horizontal=True
             new_name = naming_pattern(id)
             new_path = os.path.join(base_dir, new_name + extension)
-            picture = Picture(path=new_path, name=f"{dir_name}. {new_name}", is_horizontal=is_horizontal, dimensions=img.size)
+            picture = Picture(
+                path=new_path, 
+                name=f"{dir_name}. {new_name}", 
+                is_horizontal=is_horizontal, 
+                dimensions=img.size
+            )
 
             if is_horizontal:
                 horizontals.insert(0, picture)
@@ -88,7 +93,4 @@ def process_dir(
             os.remove(pic)
 
     return verticals + horizontals
-
-if __name__ == "__main__":
-    print(process_dir("/home/ivan/projects/pdf_generator/backend/test_dir/03.Фундамент АМС"))
 

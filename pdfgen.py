@@ -39,24 +39,25 @@ class Row:
     extra_margin : int = 0
 
 @dataclass
-class Testlation:
+class Teselation:
     n_pics : int
     n_vertical : int | None
     rows : tp.List[Row]
 
-ALL_HORIZONTAL = Testlation(6, 0, [Row(n_cols=2) for _ in range(3)])
-INCOMPLETE_HORIZONTAL = Testlation(5, 0, [Row(n_cols=2), Row(n_cols=2), Row(n_cols=1)])
-DEFAULT = Testlation(4, None, [Row(n_cols=2) for _ in range(2)])
-TWO_PICS = Testlation(2, None, [Row(n_cols=1) for _ in range(2)])
-SINGLE_PIC = Testlation(1, None, [Row(n_cols=1, extra_margin=20)])
-
+ALL_HORIZONTAL = Teselation(6, 0, [Row(n_cols=2) for _ in range(3)])
+INCOMPLETE_HORIZONTAL = Teselation(5, 0, [Row(n_cols=2), Row(n_cols=2), Row(n_cols=1)])
+DEFAULT = Teselation(4, None, [Row(n_cols=2) for _ in range(2)])
+THREE_PICS = Teselation(3, None, [Row(n_cols=2), Row(n_cols=1)])
+TWO_PICS = Teselation(2, None, [Row(n_cols=1) for _ in range(2)])
+SINGLE_PIC = Teselation(1, None, [Row(n_cols=1, extra_margin=20)])
 
 class DefaultReportGen(ReportGenerator):
     def render(
         self, 
         pics : tp.List[Picture], 
-        patterns : tp.List[Testlation]=[ALL_HORIZONTAL, INCOMPLETE_HORIZONTAL, DEFAULT, TWO_PICS, SINGLE_PIC], 
+        patterns : tp.List[Teselation] = [ALL_HORIZONTAL, INCOMPLETE_HORIZONTAL, DEFAULT, THREE_PICS ,TWO_PICS, SINGLE_PIC], 
         v_space_between : int = 10,
+        v_offset : int = 3,
         heading : str | None = None,
         subheading : str | None = None
     ) -> None:
@@ -86,9 +87,9 @@ class DefaultReportGen(ReportGenerator):
             if subheading:
                 self.pdf.cell(text=subheading, align=Align.C, new_x=XPos.LMARGIN, new_y=YPos.NEXT, center=True)
 
-            y = self.pdf.get_y()
+            y = self.pdf.get_y() + v_offset
             n_rows = len(rows)
-            picture_height = (self.pdf.h - y - self.pdf.b_margin - n_rows * v_space_between) / n_rows
+            picture_height = (self.pdf.h - y - self.pdf.b_margin - n_rows * v_space_between - v_offset) / n_rows
             for row in rows:
                 x = self.pdf.l_margin + row.extra_margin
                 picture_width = (self.pdf.w - self.pdf.l_margin - self.pdf.r_margin - 
@@ -97,21 +98,9 @@ class DefaultReportGen(ReportGenerator):
                     pic = pics.pop(0)
                     image = self.pdf.image(x=x, y=y, name=pic.path, h=picture_height, w=picture_width, keep_aspect_ratio=True)
                     if pic.name:
-                        actual_y = y + image.rendered_height - (image.rendered_height - picture_height) / 2 
+                        actual_y = y + image.rendered_height - (image.rendered_height - picture_height) / 2 + v_offset
                         self.pdf.set_xy(x, actual_y)
                         self.pdf.cell(text=pic.name, align=Align.C, w=picture_width)
                     x += picture_width + row.space_between
                 y += v_space_between + picture_height
 
-if __name__ == "__main__":
-    from file_sorter import process_dir
-    pics = process_dir("/home/ivan/projects/pdf_generator/test_dir/03.Фундамент АМС")
-    gen1 = DefaultReportGen("test.pdf")
-    gen1.render(
-        pics,
-        heading="Общество с ограниченной ответственностью «ПоморКом»", 
-        subheading="163016, г. Архангельск, ул. Октябрьская, д.3, стр. 7, каб.1",
-    )
-    gen1.finish()
-
-            

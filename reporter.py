@@ -13,7 +13,7 @@ def main(dir : AbsolutePath, output="picture.pdf", heading=None, subheading=None
     gen.pdf.output(output)
 
 if __name__ == "__main__":
-    dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_dir")
+    dir = input("Выбирете директорию: ")
     heading="Общество с ограниченной ответственностью «ПоморКом»" 
     subheading="163016, г. Архангельск, ул. Октябрьская, д.3, стр. 7, каб.1"
     main(dir, "pictures.pdf", heading, subheading)

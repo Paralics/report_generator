@@ -46,7 +46,7 @@ _ORIENTED = (Orientation.VERY_TALL, Orientation.VERTICAL, Orientation.HORIZONTAL
 # (vertical pages hold 4, all-horizontal pages are denser at 6) and may mix
 # orientations at the V*/H* boundary, exactly like the original layout.
 _PATTERNS = {
-    Orientation.VERY_TALL: ((3, 3), (3, 2), (3, 1), (3,), (2,), (1,)),
+    Orientation.VERY_TALL: ((3,), (2,), (1,)),
     Orientation.VERTICAL: ((2, 2), (2, 1), (1, 1), (1,)),
     Orientation.HORIZONTAL: ((2, 2, 2), (2, 2, 1), (2, 2), (2, 1), (1, 1), (1,)),
 }

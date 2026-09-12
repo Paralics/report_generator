@@ -19,9 +19,9 @@ class App:
         frame = tk.Frame(root, border=10)
         frame.pack(fill="both", expand=True)
 
-        tk.Label(frame, text="Директория:").grid(row=0, column=0, sticky="w")
+        tk.Label(frame, text="Папка:").grid(row=0, column=0, sticky="w")
         tk.Entry(frame, textvariable=self.dir).grid(row=0, column=1, sticky="ew")
-        tk.Button(frame, text="Обзор...", command=self.choose_dir).grid(row=0, column=2, padx=(5, 0))
+        tk.Button(frame, text="Обзор", command=self.choose_dir).grid(row=0, column=2, padx=(5, 0))
 
         tk.Label(frame, text="Имя файла:").grid(row=1, column=0, sticky="w", pady=(10, 0))
         tk.Entry(frame, textvariable=self.name).grid(row=1, column=1, sticky="ew", pady=(10, 0))
@@ -29,9 +29,9 @@ class App:
         self.generate_btn = tk.Button(frame, text="Сгенерировать", command=self.generate)
         self.generate_btn.grid(row=2, column=1, pady=(10, 0))
 
-        tk.Label(frame, text="Прогресс:").grid(row=3, column=0, sticky="w", pady=(10, 0))
+        tk.Label(frame).grid(row=3, column=0, sticky="w", pady=(10, 0))
         self.progress = ttk.Progressbar(frame, mode="determinate")
-        self.progress.grid(row=3, column=1, columnspan=2, sticky="ew", pady=(10, 0))
+        self.progress.grid(row=3, column=0, columnspan=3, sticky="ew")
 
         tk.Label(frame, textvariable=self.status).grid(row=4, column=1, columnspan=2, sticky="w")
 

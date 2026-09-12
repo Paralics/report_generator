@@ -1,6 +1,6 @@
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox
 import reporter
 
 DEFAULT_NAME = "picture.pdf"
@@ -13,18 +13,27 @@ class App:
         self.root.title("Генератор отчёта")
         self.dir = tk.StringVar()
         self.name = tk.StringVar(value=DEFAULT_NAME)
+        self.status = tk.StringVar(value="Готов к запуску")
+        self.running = False
 
         frame = tk.Frame(root, border=10)
         frame.pack(fill="both", expand=True)
 
-        tk.Label(frame, text="Директория:").grid(row=0, column=0, sticky="w")
+        tk.Label(frame, text="Папка:").grid(row=0, column=0, sticky="w")
         tk.Entry(frame, textvariable=self.dir).grid(row=0, column=1, sticky="ew")
-        tk.Button(frame, text="Обзор...", command=self.choose_dir).grid(row=0, column=2, padx=(5, 0))
+        tk.Button(frame, text="Обзор", command=self.choose_dir).grid(row=0, column=2, padx=(5, 0))
 
         tk.Label(frame, text="Имя файла:").grid(row=1, column=0, sticky="w", pady=(10, 0))
         tk.Entry(frame, textvariable=self.name).grid(row=1, column=1, sticky="ew", pady=(10, 0))
 
-        tk.Button(frame, text="Сгенерировать", command=self.generate).grid(row=2, column=1, pady=(10, 0))
+        self.generate_btn = tk.Button(frame, text="Сгенерировать", command=self.generate)
+        self.generate_btn.grid(row=2, column=1, pady=(10, 0))
+
+        tk.Label(frame).grid(row=3, column=0, sticky="w", pady=(10, 0))
+        self.progress = ttk.Progressbar(frame, mode="determinate")
+        self.progress.grid(row=3, column=0, columnspan=3, sticky="ew")
+
+        tk.Label(frame, textvariable=self.status).grid(row=4, column=1, columnspan=2, sticky="w")
 
         frame.columnconfigure(1, weight=1)
 
@@ -42,15 +51,44 @@ class App:
         if not name:
             messagebox.showerror("Ошибка", "Укажите имя файла")
             return
+        if self.running:
+            return
+        self.running = True
+        self.generate_btn.config(state="disabled")
+        self.status.set("Обработка...")
         threading.Thread(target=self._run, args=(dir, name), daemon=True).start()
+
+    def _progress(self, done: int, total: int):
+        self.root.after(0, self._update_progress, done, total)
+
+    def _update_progress(self, done: int, total: int):
+        if total and int(self.progress["maximum"]) != total:
+            self.progress.configure(maximum=total)
+        self.progress["value"] = done
+        if total:
+            self.status.set(f"Обработка: {done} из {total}")
+
+    def _done(self):
+        value = float(self.progress["value"])
+        self.running = False
+        self.progress.configure(maximum=value or 1, value=value or 1)
+        self.generate_btn.config(state="normal")
+        self.status.set("Готово")
+        messagebox.showinfo("Готово", "Отчёт сохранён")
+
+    def _failed(self, exc: Exception):
+        self.running = False
+        self.generate_btn.config(state="normal")
+        self.status.set("Ошибка")
+        messagebox.showerror("Ошибка", str(exc))
 
     def _run(self, dir, name):
         try:
-            reporter.main(dir, name, HEADING, SUBHEADING)
+            reporter.main(dir, name, HEADING, SUBHEADING, self._progress)
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Ошибка", str(e)))
+            self.root.after(0, self._failed, e)
         else:
-            self.root.after(0, lambda: messagebox.showinfo("Готово", "Отчёт сохранён"))
+            self.root.after(0, self._done)
 
 
 def main():

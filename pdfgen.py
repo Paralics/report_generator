@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from fpdf import FPDF, Align, XPos, YPos
-from file_sorter import AbsolutePath, Picture
-from math import ceil
+from file_sorter import AbsolutePath, Picture, Orientation
 from abc import ABC, abstractmethod
 import typing as tp
 import os
@@ -38,48 +37,64 @@ class Row:
     space_between : int = 10
     extra_margin : int = 0
 
-@dataclass
-class Teselation:
-    n_pics : int
-    n_vertical : int | None
-    rows : tp.List[Row]
+_ORIENTED = (Orientation.VERY_TALL, Orientation.VERTICAL, Orientation.HORIZONTAL)
 
-ALL_HORIZONTAL = Teselation(6, 0, [Row(n_cols=2) for _ in range(3)])
-INCOMPLETE_HORIZONTAL = Teselation(5, 0, [Row(n_cols=2), Row(n_cols=2), Row(n_cols=1)])
-DEFAULT = Teselation(4, None, [Row(n_cols=2) for _ in range(2)])
-THREE_PICS = Teselation(3, None, [Row(n_cols=2), Row(n_cols=1)])
-TWO_PICS = Teselation(2, None, [Row(n_cols=1) for _ in range(2)])
-SINGLE_PIC = Teselation(1, None, [Row(n_cols=1, extra_margin=20)])
+# Column counts per page pattern, tried largest-first (like the old hard-coded
+# table). Very tall pictures get their own dedicated pages rendered as 3-per-
+# row grids; a 3-column row therefore never holds anything but very tall pics.
+# The remaining vertical/horizontal stream uses the classic 2-per-row patterns
+# (vertical pages hold 4, all-horizontal pages are denser at 6) and may mix
+# orientations at the V*/H* boundary, exactly like the original layout.
+_PATTERNS = {
+    Orientation.VERY_TALL: ((3,), (2,), (1,)),
+    Orientation.VERTICAL: ((2, 2), (2, 1), (1, 1), (1,)),
+    Orientation.HORIZONTAL: ((2, 2, 2), (2, 2, 1), (2, 2), (2, 1), (1, 1), (1,)),
+}
+
+def plan_pages(counts : tp.Dict[Orientation, int]) -> tp.List[tp.Tuple[int, ...]]:
+    """Folds the sorted VT* V* H* stream into page patterns of row column-counts."""
+    pages : tp.List[tp.Tuple[int, ...]] = []
+
+    vt = counts[Orientation.VERY_TALL]
+    while vt:
+        pattern = next(p for p in _PATTERNS[Orientation.VERY_TALL] if sum(p) <= vt)
+        pages.append(pattern)
+        vt -= sum(pattern)
+
+    rem_v, rem_h = counts[Orientation.VERTICAL], counts[Orientation.HORIZONTAL]
+    while rem_v or rem_h:
+        total = rem_v + rem_h
+        if rem_v:
+            patterns = _PATTERNS[Orientation.VERTICAL]
+        else:
+            patterns = _PATTERNS[Orientation.HORIZONTAL]
+        pattern = next(p for p in patterns if sum(p) <= total)
+        pages.append(pattern)
+        need = sum(pattern)
+        take = min(rem_v, need)
+        rem_v -= take
+        rem_h -= need - take
+    return pages
+
+def rows_for_page(pattern : tp.Tuple[int, ...]) -> tp.List[Row]:
+    rows = [Row(n_cols=c) for c in pattern]
+    if sum(pattern) == 1:
+        rows[0].extra_margin = 20
+    return rows
 
 class DefaultReportGen(ReportGenerator):
     def render(
-        self, 
-        pics : tp.List[Picture], 
-        patterns : tp.List[Teselation] = [ALL_HORIZONTAL, INCOMPLETE_HORIZONTAL, DEFAULT, THREE_PICS ,TWO_PICS, SINGLE_PIC], 
+        self,
+        pics : tp.List[Picture],
         v_space_between : int = 10,
         v_offset : int = 3,
         heading : str | None = None,
         subheading : str | None = None
     ) -> None:
-        while pics:
-            # select pattern for the page
-            rows = None
-            for pattern in patterns:
-                # assume list to be sorted vertical first then horizontal
-                if len(pics) < pattern.n_pics:
-                    continue
-                if pattern.n_vertical is not None:
-                    right_check = pattern.n_vertical
-                    left_check = right_check - 1
-                    if not (right_check >= len(pics) or pics[right_check].is_horizontal):
-                        continue
-                    if not (left_check < 0 or not pics[left_check].is_horizontal):
-                        continue
-                rows = pattern.rows
-                break
-
-            if not rows:
-                raise ValueError(f"No pattern fits: {pics} {patterns}")
+        # assume pics are sorted very tall first, then vertical, then horizontal
+        counts = {o: sum(1 for p in pics if p.orientation == o) for o in _ORIENTED}
+        for pattern in plan_pages(counts):
+            rows = rows_for_page(pattern)
 
             self.pdf.add_page()
             if heading:
@@ -103,4 +118,3 @@ class DefaultReportGen(ReportGenerator):
                         self.pdf.cell(text=pic.name, align=Align.C, w=picture_width)
                     x += picture_width + row.space_between
                 y += v_space_between + picture_height
-
